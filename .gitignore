@@ -8,6 +8,7 @@ __pycache__/
 
 # Large and generated data (recreate with the scripts, see docs/DATA.md)
 data/
+reports/sample_records.csv
 
 # Editor and OS files
 .idea/
