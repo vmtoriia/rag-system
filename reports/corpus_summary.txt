@@ -1,0 +1,59 @@
+Corpus size: 6,039 products (en:czech-republic)
+With at least one declared allergen: 3,674 (60.8%)
+With at least one trace allergen:    2,251 (37.3%)
+
+Nutrient availability (share of products):
+  energy_kcal_100g: 0.986
+  fat_100g: 0.996
+  saturated_fat_100g: 0.977
+  carbohydrates_100g: 0.998
+  sugars_100g: 0.991
+  fiber_100g: 0.602
+  proteins_100g: 0.996
+  salt_100g: 0.976
+
+Top categories:
+                               category    n
+     en:plant-based-foods-and-beverages 2779
+                   en:plant-based-foods 2317
+                              en:snacks 1237
+                        en:sweet-snacks 1029
+                en:cereals-and-potatoes  818
+                           en:beverages  747
+          en:cereals-and-their-products  691
+                            en:desserts  636
+en:beverages-and-beverages-preparations  602
+                             en:dairies  594
+                     en:fermented-foods  592
+   en:fruits-and-vegetables-based-foods  531
+             en:fermented-milk-products  458
+                   en:dairy-substitutes  446
+               en:plant-based-beverages  415
+                          en:breakfasts  381
+                   en:meat-alternatives  366
+                  en:biscuits-and-cakes  356
+                               en:meals  349
+                          en:condiments  332
+                             en:spreads  330
+                      en:meat-analogues  324
+                     en:confectioneries  324
+              en:cocoa-and-its-products  308
+                   en:breakfast-cereals  286
+
+Top declared allergens:
+                        allergen    n
+                       en:gluten 1655
+                         en:milk 1255
+                     en:soybeans 1016
+                         en:nuts  580
+                         en:eggs  263
+                         en:none  251
+                 en:sesame-seeds  194
+                      en:mustard  189
+                      en:peanuts  187
+                       en:celery  148
+en:sulphur-dioxide-and-sulphites   69
+                         en:fish   63
+                     cs:pšeničná   41
+                        en:apple   31
+             cs:mléčná-bílkovina   17

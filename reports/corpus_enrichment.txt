@@ -1,0 +1,29 @@
+Products in:  6,039
+Products out: 5,888 (excluded categories: ['en:dietary-supplements'])
+Ingredient texts containing HTML: before 1,047, after 0
+Products with non-standard allergen tags (moved to allergens_other): 371
+Products with explicit 'en:none' (no allergens declared): 247
+
+EU-14 allergen counts (declared):
+                     allergen    n
+                       gluten 1563
+                         milk 1110
+                     soybeans  964
+                         nuts  545
+                         eggs  259
+                 sesame-seeds  186
+                      mustard  185
+                      peanuts  166
+                       celery  147
+sulphur-dioxide-and-sulphites   68
+                         fish   56
+                        lupin   13
+                  crustaceans    6
+
+doc_text length (characters):
+ mean_chars  max_chars  p95_chars
+      523.0       1283     1004.3
+
+Example doc_text:
+- Product: RED & BLACK GUMS. Brand: Marks & Spencer. Categories: snacks, sweet snacks, confectioneries, candies, gummi candies, gummy bears. Ingredients: Glucose Syrup · Sugar · Modified Potato Starch · Apple Jam (Glucose-Fructose Syrup Sugar - Apple Concentrated Apple Juice · Acidity Regulator: E331, Acid: Citric Acid) · Modified Tapioca Starch· Acid: Citric Acid · Flavourings· Colour: Carbon Black, Anthocyanins (from Carrots) · Sunflower Oil. Clazing Agent: Carnauba Wax.. Per 100 g: energy 365 kcal, fat 0.3 g, sugars 44.9 g, protein 0.5 g
+- Product: foam lobsters. Brand: Marks & Spencer. Categories: snacks, sweet snacks, confectioneries, candies, gummi candies. Ingredients: Sugar Glucose Syrup · Dextrose · Beef Gelatine · Maize Starch· Concentrated Beetroot Juice · Flavourings.. Contains allergens: milk. Per 100 g: energy 351 kcal, fat 0.1 g, sugars 74.6 g, protein 2.8 g, salt 0.03 g

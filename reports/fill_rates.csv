@@ -1,0 +1,11 @@
+,fill_rate
+code,1.0
+product_name,0.914
+brands,0.835
+categories_tags,0.543
+ingredients_text,0.338
+allergens_tags,0.197
+traces_tags,0.118
+nutriments,0.78
+countries_tags,1.0
+lang,1.0

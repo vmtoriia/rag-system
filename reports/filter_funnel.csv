@@ -1,0 +1,8 @@
+step,remaining,removed
+"country subset",21066,0
+"valid barcode (8-14 digits)",21053,13
+"not marked obsolete",21053,0
+"has product name",19247,1806
+"has ingredients text (>= 10 chars)",6848,12399
+"has category tags",6482,366
+"has at least 3 nutrients",6039,443
