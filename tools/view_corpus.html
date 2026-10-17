@@ -165,7 +165,16 @@
 
 <script>
 // ---------- Data and settings ----------
-const products = JSON.parse(document.getElementById("products").textContent);
+// If this is the empty template (not the page built by view_corpus.py), say so instead of failing silently.
+const rawData = document.getElementById("products").textContent.trim();
+if (!rawData.startsWith("[")) {
+  document.querySelector("main").innerHTML =
+    "<h1>This is only the template</h1>" +
+    "<p>It contains no products. Run <code>python tools/view_corpus.py</code> and open " +
+    "<b>data/corpus_view.html</b> instead.</p>";
+  throw new Error("Template opened directly; open data/corpus_view.html instead.");
+}
+const products = JSON.parse(rawData);
 
 const EU_ALLERGENS = [
   "gluten", "crustaceans", "eggs", "fish", "peanuts", "soybeans", "milk",
