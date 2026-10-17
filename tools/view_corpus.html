@@ -1,0 +1,340 @@
+<!doctype html>
+<!--
+  Page template for browsing the corpus.
+  tools/view_corpus.py replaces __PRODUCTS__ below with the product data and saves the
+  finished page as data/corpus_view.html. Do not open this template directly.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Corpus viewer</title>
+  <style>
+    /* ---------- Colours (light and dark) ---------- */
+    :root {
+      --bg: #f6f5f1;
+      --surface: #ffffff;
+      --text: #1f1f1c;
+      --muted: #6d6c66;
+      --border: #e2e0d8;
+      --accent: #2f6b5a;
+      --accent-soft: #e6efeb;
+      --warning: #a3440f;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #151513;
+        --surface: #1e1e1b;
+        --text: #ebeae5;
+        --muted: #9b9a93;
+        --border: #33322d;
+        --accent: #6cc3a8;
+        --accent-soft: #24302c;
+        --warning: #f0a374;
+      }
+    }
+
+    /* ---------- Page ---------- */
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font: 15px/1.5 "Segoe UI", system-ui, sans-serif;
+    }
+    main { max-width: 1180px; margin: 0 auto; padding: 28px 16px 48px; }
+    h1 { font-size: 22px; margin: 0; }
+    .subtitle { color: var(--muted); margin: 4px 0 20px; }
+
+    /* ---------- Filter panel ---------- */
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px;
+      display: grid;
+      gap: 14px;
+    }
+    .search-row { display: flex; gap: 10px; flex-wrap: wrap; }
+    input[type="search"], select {
+      font: inherit;
+      color: var(--text);
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 10px;
+    }
+    input[type="search"] { flex: 1; min-width: 240px; }
+    .label { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); margin-bottom: 6px; }
+
+    .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+    .chip {
+      font: inherit; font-size: 13px;
+      padding: 4px 12px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      cursor: pointer;
+    }
+    .chip[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--surface); }
+
+    .modes { display: inline-flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; flex-wrap: wrap; }
+    .modes button {
+      font: inherit; font-size: 13px;
+      padding: 6px 12px;
+      border: 0;
+      background: var(--surface);
+      color: var(--text);
+      cursor: pointer;
+    }
+    .modes button[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+    .mode-help { font-size: 13px; color: var(--muted); margin-top: 6px; }
+
+    /* ---------- Results ---------- */
+    .count { margin: 20px 0 8px; font-weight: 600; }
+    .table-wrap { overflow-x: auto; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; }
+    table { width: 100%; min-width: 780px; border-collapse: collapse; }
+    th, td { padding: 9px 12px; text-align: left; border-bottom: 1px solid var(--border); vertical-align: top; }
+    th { font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); font-weight: 600; }
+    .num { text-align: right; font-variant-numeric: tabular-nums; }
+    .allergens { color: var(--warning); }
+    .muted { color: var(--muted); }
+    tr.product { cursor: pointer; }
+    tr.product:hover { background: var(--accent-soft); }
+
+    tr.details td { background: var(--bg); font-size: 14px; }
+    .details dl { display: grid; grid-template-columns: 170px 1fr; gap: 6px 16px; margin: 4px 0; }
+    .details dt { color: var(--muted); }
+    .details dd { margin: 0; overflow-wrap: anywhere; }
+    .details a { color: var(--accent); }
+
+    .more {
+      display: block; margin: 16px auto 0;
+      font: inherit; padding: 8px 18px;
+      border: 1px solid var(--border); border-radius: 8px;
+      background: var(--surface); color: var(--text); cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+<main>
+  <h1>Corpus viewer</h1>
+  <p class="subtitle">Open Food Facts, Czech subset. Click a product to see all its fields, including <code>doc_text</code>, the text that gets embedded.</p>
+
+  <section class="panel">
+    <div class="search-row">
+      <input id="search" type="search" placeholder="Search name, brand or ingredients (accents are ignored)">
+      <select id="language"><option value="">All languages</option></select>
+    </div>
+
+    <div>
+      <div class="label">I am allergic to</div>
+      <div class="chips" id="allergen-chips"></div>
+    </div>
+
+    <div>
+      <div class="label">How strict is the allergy filter</div>
+      <div class="modes" id="modes">
+        <button data-mode="declared" aria-pressed="true">Hide declared</button>
+        <button data-mode="traces" aria-pressed="false">Also hide traces</button>
+        <button data-mode="confirmed" aria-pressed="false">Only confirmed allergen-free</button>
+      </div>
+      <div class="mode-help" id="mode-help"></div>
+    </div>
+  </section>
+
+  <div class="count" id="count"></div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th><th>Brand</th><th>Lang</th>
+          <th class="num">kcal</th><th class="num">Sugars g</th><th class="num">Protein g</th>
+          <th>Allergens</th><th>Traces</th>
+        </tr>
+      </thead>
+      <tbody id="results"></tbody>
+    </table>
+  </div>
+  <button class="more" id="more">Show more</button>
+</main>
+
+<!-- Product data, filled in by tools/view_corpus.py -->
+<script id="products" type="application/json">__PRODUCTS__</script>
+
+<script>
+// ---------- Data and settings ----------
+const products = JSON.parse(document.getElementById("products").textContent);
+
+const EU_ALLERGENS = [
+  "gluten", "crustaceans", "eggs", "fish", "peanuts", "soybeans", "milk",
+  "nuts", "celery", "mustard", "sesame-seeds", "sulphur-dioxide-and-sulphites", "lupin", "molluscs",
+];
+
+const MODE_HELP = {
+  declared:  "Hides products whose allergen list contains the selected allergen.",
+  traces:    "Also hides products that 'may contain traces' of it.",
+  confirmed: "Keeps only products explicitly marked 'no allergens'. Safest, but very few products.",
+};
+
+const PAGE_SIZE = 100;
+
+const state = {
+  search: "",
+  language: "",
+  allergies: new Set(),
+  mode: "declared",
+  shown: PAGE_SIZE,
+};
+
+// ---------- Small helpers ----------
+const byId = (id) => document.getElementById(id);
+
+// "Čokoláda" -> "cokolada", so searching works with or without accents
+function simplify(text) {
+  return (text || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+}
+
+// Product texts are shown as text, never interpreted as HTML
+function escapeHtml(text) {
+  return String(text ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+}
+
+function showNumber(value) {
+  return value === null ? '<span class="muted">–</span>' : value;
+}
+
+function showList(list) {
+  return list.length ? list.join(", ").replaceAll("-", " ") : "";
+}
+
+// Prepare one lower-case search text per product once, instead of on every key press
+for (const p of products) {
+  p.searchText = simplify(`${p.name} ${p.brands} ${p.ingredients_text}`);
+}
+
+// ---------- Filters ----------
+function matchesSearch(p) {
+  return !state.search || p.searchText.includes(state.search);
+}
+
+function matchesLanguage(p) {
+  return !state.language || p.lang === state.language;
+}
+
+// The same three rules the profile memory will use later
+function passesAllergyFilter(p) {
+  if (state.allergies.size === 0) return true;
+  const selected = [...state.allergies];
+
+  if (selected.some((a) => p.allergens.includes(a))) return false;
+  if (state.mode !== "declared" && selected.some((a) => p.traces.includes(a))) return false;
+  if (state.mode === "confirmed" && !p.no_allergens) return false;
+  return true;
+}
+
+function filteredProducts() {
+  return products.filter((p) => matchesSearch(p) && matchesLanguage(p) && passesAllergyFilter(p));
+}
+
+// ---------- Rendering ----------
+function productRow(p, index) {
+  return `
+    <tr class="product" data-index="${index}">
+      <td>${escapeHtml(p.name)}</td>
+      <td>${escapeHtml(p.brands)}</td>
+      <td>${escapeHtml(p.lang)}</td>
+      <td class="num">${showNumber(p.kcal)}</td>
+      <td class="num">${showNumber(p.sugars)}</td>
+      <td class="num">${showNumber(p.protein)}</td>
+      <td class="allergens">${escapeHtml(showList(p.allergens))}</td>
+      <td class="muted">${escapeHtml(showList(p.traces))}</td>
+    </tr>`;
+}
+
+function detailsRow(p) {
+  const fields = [
+    ["Barcode (EAN)", escapeHtml(p.ean)],
+    ["Categories", escapeHtml(showList(p.categories))],
+    ["Allergens", escapeHtml(showList(p.allergens) || "none listed")],
+    ["May contain traces", escapeHtml(showList(p.traces) || "none listed")],
+    ["Marked 'no allergens'", p.no_allergens ? "yes" : "no"],
+    ["Ingredients", escapeHtml(p.ingredients_text)],
+    ["doc_text (embedded)", escapeHtml(p.doc_text)],
+    ["Source", `<a href="${escapeHtml(p.url)}" target="_blank" rel="noopener">${escapeHtml(p.url)}</a>`],
+  ];
+  const list = fields.map(([label, value]) => `<dt>${label}</dt><dd>${value}</dd>`).join("");
+  return `<tr class="details"><td colspan="8"><dl class="details">${list}</dl></td></tr>`;
+}
+
+let currentResults = [];
+
+function render() {
+  currentResults = filteredProducts();
+  const visible = currentResults.slice(0, state.shown);
+
+  byId("count").textContent =
+    `${currentResults.length.toLocaleString("en")} of ${products.length.toLocaleString("en")} products`;
+  byId("results").innerHTML = visible.map(productRow).join("");
+  byId("more").hidden = currentResults.length <= state.shown;
+  byId("mode-help").textContent = MODE_HELP[state.mode];
+}
+
+// Any filter change starts again from the first page of results
+function update(change) {
+  change();
+  state.shown = PAGE_SIZE;
+  render();
+}
+
+// ---------- Build the controls ----------
+const languages = [...new Set(products.map((p) => p.lang))].sort();
+for (const lang of languages) {
+  byId("language").add(new Option(lang, lang));
+}
+
+for (const allergen of EU_ALLERGENS) {
+  const chip = document.createElement("button");
+  chip.className = "chip";
+  chip.textContent = allergen.replaceAll("-", " ");
+  chip.setAttribute("aria-pressed", "false");
+  chip.addEventListener("click", () => update(() => {
+    const on = !state.allergies.has(allergen);
+    on ? state.allergies.add(allergen) : state.allergies.delete(allergen);
+    chip.setAttribute("aria-pressed", String(on));
+  }));
+  byId("allergen-chips").append(chip);
+}
+
+// ---------- Events ----------
+byId("search").addEventListener("input", (e) => update(() => { state.search = simplify(e.target.value.trim()); }));
+byId("language").addEventListener("change", (e) => update(() => { state.language = e.target.value; }));
+
+byId("modes").addEventListener("click", (e) => {
+  const button = e.target.closest("button");
+  if (!button) return;
+  update(() => {
+    state.mode = button.dataset.mode;
+    for (const b of byId("modes").children) b.setAttribute("aria-pressed", String(b === button));
+  });
+});
+
+byId("more").addEventListener("click", () => { state.shown += PAGE_SIZE; render(); });
+
+// Clicking a product opens or closes its details below it
+byId("results").addEventListener("click", (e) => {
+  const row = e.target.closest("tr.product");
+  if (!row) return;
+  const next = row.nextElementSibling;
+  if (next && next.classList.contains("details")) {
+    next.remove();
+  } else {
+    row.insertAdjacentHTML("afterend", detailsRow(currentResults[row.dataset.index]));
+  }
+});
+
+render();
+</script>
+</body>
+</html>
