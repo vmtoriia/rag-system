@@ -99,7 +99,7 @@ and question vectors are comparable.
 ## Level 3: Components of the backend
 
 ```mermaid
-flowchart LR
+flowchart TB
     request(["POST /api/ask"])
     response(["Answer + cited products"])
 
@@ -182,12 +182,12 @@ sequenceDiagram
 
 ## Key decisions
 
-| Decision | Alternative considered | Reason |
-|---|---|---|
-| Backend in Java with Spring Boot and Spring AI | Python | Required by the assignment |
-| Data preparation in Python (DuckDB) | Java | Fast analysis of an 8 GB Parquet file; the assignment lists data preparation scripts as a separate deliverable |
-| Local models in Ollama: `qwen2.5:3b` for answers, `bge-m3` for embeddings | Paid cloud API | Free, reproducible, data stays local; Spring AI supports Ollama directly; `bge-m3` is multilingual (61% of products are Czech) |
-| One database for products, vectors and the answer log | Separate vector database | Allergen filters and similarity search in one SQL query; fewer moving parts |
-| Exact similarity search, no approximate index | HNSW index | 5,888 products are searched in milliseconds; no approximation errors in the evaluation, and no lost results when filters are applied |
-| Limits sent as structured fields in the request | Extracting limits from free text with the language model | Deterministic, repeatable filtering, as the assignment requires |
-| Unknown allergen data never counts as absence | Treating an empty allergen field as "no allergens" | Required by the assignment; the data has many empty fields |
+| Decision | Reason |
+|---|---|
+| Backend in Java with Spring Boot and Spring AI | Required by the assignment |
+| Data preparation in Python (DuckDB) | Fast analysis of an 8 GB Parquet file; the assignment lists data preparation scripts as a separate deliverable |
+| Local models in Ollama: `qwen2.5:3b` for answers, `bge-m3` for embeddings | Free, reproducible, data stays local; Spring AI supports Ollama directly; `bge-m3` is multilingual (61% of products are Czech) |
+| One database for products, vectors and the answer log | Allergen filters and similarity search in one SQL query; fewer moving parts |
+| Exact similarity search, no approximate index | 5,888 products are searched in milliseconds; no approximation errors in the evaluation, and no lost results when filters are applied |
+| Limits sent as structured fields in the request | Deterministic, repeatable filtering, as the assignment requires |
+| Unknown allergen data never counts as absence | Required by the assignment; the data has many empty fields |
