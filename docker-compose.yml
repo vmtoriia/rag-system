@@ -1,0 +1,25 @@
+# Local PostgreSQL database with the pgvector extension.
+# It stores the products together with their embeddings (vectors).
+#
+# Start:   docker compose up -d
+# Check:   docker ps
+# Stop:    docker compose stop
+# Delete the database and all its data:   docker compose down -v
+#
+# The user name and password are for a local test database only. The database is reachable from
+# this computer only (127.0.0.1), so they are not a secret. The same values are used in scripts/common.py.
+services:
+  db:
+    image: pgvector/pgvector:pg17
+    container_name: rag-memory-db
+    environment:
+      POSTGRES_USER: rag
+      POSTGRES_PASSWORD: rag
+      POSTGRES_DB: rag
+    ports:
+      - "127.0.0.1:15432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:

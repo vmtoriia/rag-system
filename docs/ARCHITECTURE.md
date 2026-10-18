@@ -1,187 +1,193 @@
 # Architecture
 
 The architecture is described with the **C4 model** (https://c4model.com), which shows a system at
-increasing levels of detail, like zooming in on a map:
+increasing levels of detail:
 
 1. **System context**: the system as one box, and who or what it interacts with.
-2. **Containers**: the separately running programs and data stores inside the system.
-3. **Components**: the parts inside the most important container, the chat application.
-4. **Code**: not drawn. At this level the source code itself is the documentation.
+2. **Containers**: the separately running programs and data stores.
+3. **Components**: the parts inside the backend application.
+4. **Code**: not drawn; at this level the source code is the documentation.
 
-A runtime diagram (one conversation turn, step by step) completes the static views.
+A runtime diagram (one request, step by step) completes the static views.
 
-**Status in the diagrams:** solid border = implemented, dashed border = planned.
+**Status in the diagrams:** solid border = implemented or running, dashed border = planned.
 
 ## Requirements that shape the design
+Taken from the project assignment:
 
-The system is a research prototype, not a product. Its purpose is to measure how short-term and
-long-term memory affect anaphora resolution and personalisation. This leads to four requirements:
-
-- **Switchable memory.** Each memory type can be turned on and off, so the four experiment
-  configurations (0 none, 1 short-term, 2 long-term, 3 both) differ in exactly one thing at a time.
-- **Comparable runs.** All configurations run on the same test dialogues, data and models.
-- **Traceable steps.** Every intermediate result (rewritten question, filters, retrieved products,
-  prompt, answer) is recorded, so errors can be located and measured.
-- **Free and local.** Everything runs on one laptop (16 GB RAM, 4 GB GPU) with open-source models.
+- **Grounded answers.** Every answer is based on concrete product records and names them, with links to the
+  source records. Answers that the retrieved records do not support are refused.
+- **Safe allergen handling.** Filtering by allergens and nutrition limits is deterministic. Declared allergens,
+  possible traces and missing information are kept apart; missing information is never treated as absence.
+- **Hybrid search.** Semantic similarity is combined with filters on structured attributes, and compared with
+  vector-only search.
+- **Traceability.** Each answer is logged with the query, the sources used, the model, its parameters and the
+  processing time.
+- **Prescribed technology.** Java, Spring Boot, Spring AI, PostgreSQL with pgvector; started with Docker Compose.
+- **Free and local.** Language and embedding models run locally (Ollama), on one laptop (16 GB RAM, 4 GB GPU).
 
 ## Level 1: System context
 
 ```mermaid
 flowchart TB
-    user["<b>User</b><br/><i>Person</i><br/>Asks about food products;<br/>has allergies, a diet, dislikes"]
-    researcher["<b>Researcher</b><br/><i>Person</i><br/>Runs the test dialogues and<br/>evaluates the results"]
-    system["<b>Food assistant with memory</b><br/><i>Software system</i><br/>Answers questions about products,<br/>remembers the conversation and the user profile"]
-    off["<b>Open Food Facts</b><br/><i>External data source</i><br/>Product database export<br/>(downloaded once from Hugging Face)"]
-    hf["<b>Hugging Face Hub</b><br/><i>External model source</i><br/>Embedding model download"]
+    user["<b>User</b><br/><i>Person</i><br/>Asks about food composition,<br/>allergens and nutrition"]
+    evaluator["<b>Evaluator</b><br/><i>Person</i><br/>Runs the test queries and<br/>measures search quality"]
+    system["<b>Food RAG system</b><br/><i>Software system</i><br/>Answers questions with cited products,<br/>filters allergens and nutrition safely"]
+    off["<b>Open Food Facts</b><br/><i>External data source</i><br/>Product database export<br/>(downloaded once)"]
 
-    user -- "asks questions, states preferences" --> system
-    researcher -- "runs experiments, reads results" --> system
-    system -- "downloads product data (once)" --> off
-    system -- "downloads the embedding model (once)" --> hf
+    user -- "questions + allergy and nutrition limits (REST API)" --> system
+    evaluator -- "test queries, reads results" --> system
+    system -- "product data (one-time download)" --> off
 
     classDef person fill:#2f6b5a,stroke:#1d4a3d,color:#ffffff
     classDef sys fill:#3b6ea5,stroke:#24486e,color:#ffffff
     classDef ext fill:#8a8a85,stroke:#5e5e5a,color:#ffffff
-    class user,researcher person
+    class user,evaluator person
     class system sys
-    class off,hf ext
+    class off ext
 ```
 
-The system talks to the outside world only during setup (two downloads). After that it works offline.
+The user is any client of the REST API (for example a command-line tool or an API testing tool).
+After the one-time download, the system works offline.
 
 ## Level 2: Containers
 
 ```mermaid
 flowchart TB
-    user["<b>User / Researcher</b><br/><i>Person</i>"]
+    client["<b>User / Evaluator</b><br/><i>REST client</i>"]
 
-    subgraph sys ["Food assistant with memory"]
+    subgraph sys ["Food RAG system"]
         pipeline["<b>Data pipeline</b><br/><i>Python scripts 01-03b</i><br/>Selects, cleans and describes products"]
-        files[("<b>Corpus files</b><br/><i>Parquet files in data/</i><br/>food.parquet → corpus.parquet")]
-        indexer["<b>Indexer</b><br/><i>Python script 04</i><br/>Embeds doc_text, loads the database"]
-        db[("<b>Database</b><br/><i>PostgreSQL + pgvector, Docker</i><br/>Products, embeddings, user profiles")]
-        chat["<b>Chat application</b><br/><i>Python, command line</i><br/>RAG with short- and long-term memory"]
-        llm["<b>Language model server</b><br/><i>Ollama, qwen2.5:3b</i><br/>Rewrites questions, writes answers"]
-        runner["<b>Experiment runner</b><br/><i>Python</i><br/>Runs test dialogues in configs 0-3"]
-        results[("<b>Results</b><br/><i>Files in results/</i><br/>Traces, scores")]
+        files[("<b>Corpus files</b><br/><i>Parquet in data/</i><br/>corpus.parquet")]
+        indexer["<b>Indexer</b><br/><i>Python script 04</i><br/>Loads products, stores embeddings"]
+        db[("<b>Database</b><br/><i>PostgreSQL + pgvector, Docker</i><br/>Products, vectors, answer log")]
+        backend["<b>Backend</b><br/><i>Java, Spring Boot, Spring AI</i><br/>REST API, search, filters, answers"]
+        ollama["<b>Model server</b><br/><i>Ollama</i><br/>Chat model + embedding model"]
+        evalr["<b>Evaluation</b><br/><i>Script</i><br/>15+ test queries, precision@k, latency"]
     end
 
     pipeline -- "writes" --> files
     indexer -- "reads" --> files
-    indexer -- "writes products + vectors" --> db
-    user -- "chats" --> chat
-    user -- "starts" --> runner
-    runner -- "sends test dialogues,<br/>chooses configuration" --> chat
-    chat -- "hybrid search, profiles (SQL)" --> db
-    chat -- "prompts (HTTP)" --> llm
-    runner -- "writes" --> results
+    indexer -- "embeddings" --> ollama
+    indexer -- "products + vectors" --> db
+    client -- "HTTP / JSON" --> backend
+    evalr -- "HTTP / JSON" --> backend
+    backend -- "SQL" --> db
+    backend -- "embed question, generate answer" --> ollama
 
     classDef person fill:#2f6b5a,stroke:#1d4a3d,color:#ffffff
     classDef done fill:#3b6ea5,stroke:#24486e,color:#ffffff
     classDef planned fill:#dbe6f2,stroke:#3b6ea5,color:#1f1f1c,stroke-dasharray:6 4
-    class user person
-    class pipeline,files,llm done
-    class indexer,db,chat,runner,results planned
+    class client person
+    class pipeline,files,db,ollama done
+    class indexer,backend,evalr planned
 ```
 
 | Container | Technology | Responsibility | Status |
 |---|---|---|---|
-| Data pipeline | Python, DuckDB | Steps 1-3b: select Czech products, filter, clean, build `doc_text` | Implemented |
-| Corpus files | Parquet | Raw export and the final corpus (5,888 products) | Implemented |
-| Indexer | Python, sentence-transformers | Step 4: turn `doc_text` into vectors, load the database | Prepared, not run |
-| Database | PostgreSQL + pgvector in Docker | Products with allergen columns and vectors; user profiles | Planned |
-| Chat application | Python | One conversation turn: memory, retrieval, prompt, answer | Planned |
-| Language model server | Ollama, qwen2.5:3b | Text generation, running locally on the GPU | Installed and tested |
-| Experiment runner | Python | Runs the same dialogues through configurations 0-3 | Planned |
-| Results | Files (JSON/CSV) | Step-by-step traces and evaluation scores | Planned |
+| Data pipeline | Python, DuckDB | Select Czech products, filter, clean, build `doc_text` (`docs/DATA.md`) | Implemented |
+| Corpus files | Parquet | Final corpus of 5,888 products | Implemented |
+| Indexer | Python | Load products into the database; get their embeddings from Ollama | Planned |
+| Database | PostgreSQL 17 + pgvector, Docker | Product table with vectors; log of answers and their sources | Running, empty |
+| Backend | Java 21, Spring Boot, Spring AI | REST API; vector and hybrid search; filters; grounded answers; logging | Planned |
+| Model server | Ollama | Chat model (`qwen2.5:3b`) and embedding model (`bge-m3`) | Chat model installed |
+| Evaluation | Script calling the REST API | Run the test queries, compute precision@k and latency, compare search modes | Planned |
 
-The embedding model (multilingual-e5-small) is not a separate container: it is a library loaded
-inside the indexer and the chat application.
+The indexer and the backend use **the same embedding model in the same Ollama server**, so product vectors
+and question vectors are comparable.
 
-## Level 3: Components of the chat application
+## Level 3: Components of the backend
 
 ```mermaid
 flowchart LR
-    input(["User message"])
-    output(["Answer"])
+    request(["POST /api/ask"])
+    response(["Answer + cited products"])
 
-    subgraph chat ["Chat application"]
-        stm["<b>Conversation memory</b><br/><i>short-term</i><br/>Recent turns,<br/>products shown"]
-        profile["<b>Profile memory</b><br/><i>long-term</i><br/>Allergies, diet, dislikes<br/><i>stored in the database</i>"]
-        rewriter["<b>Query rewriter</b><br/>Turns a follow-up into<br/>a standalone question<br/><i>uses the language model</i>"]
-        filters["<b>Filter builder</b><br/>Profile → exact rules<br/>(exclude en:milk)"]
-        retriever["<b>Retriever</b><br/>Filters, then ranks<br/>by meaning<br/><i>SQL query to the database</i>"]
+    subgraph backend ["Backend (Spring Boot)"]
+        controller["<b>REST controller</b><br/>Validates the request"]
+        filters["<b>Constraint filter</b><br/>Allergen statuses and<br/>nutrition limits → SQL"]
+        retriever["<b>Retriever</b><br/>Mode: vector-only or hybrid<br/><i>embedding via Spring AI</i>"]
+        guard["<b>Grounding guard</b><br/>Refuses when no product<br/>supports an answer"]
         prompt["<b>Prompt builder</b><br/>Question + products<br/>+ answering rules"]
-        generator["<b>Answer generator</b><br/><i>uses the language model</i>"]
+        generator["<b>Answer generator</b><br/><i>chat model via Spring AI</i>"]
+        citations["<b>Citation builder</b><br/>EAN, name, link<br/>for every product used"]
+        log["<b>Provenance logger</b><br/>Query, sources, model,<br/>parameters, time"]
     end
 
-    input --> rewriter
-    rewriter -- "question" --> retriever
-    retriever -- "top products" --> prompt
+    request --> controller
+    controller --> filters
+    filters -- "conditions" --> retriever
+    retriever -- "top-k products" --> guard
+    guard -- "enough evidence" --> prompt
     prompt --> generator
-    generator --> output
-
-    stm -. "conversation" .-> rewriter
-    profile -. "profile" .-> filters
-    filters -. "filters" .-> retriever
-    generator -. "store turn" .-> stm
+    generator --> citations
+    citations --> response
+    guard -. "refusal" .-> response
+    controller -. "every request" .-> log
 
     classDef planned fill:#dbe6f2,stroke:#3b6ea5,color:#1f1f1c,stroke-dasharray:6 4
-    classDef memory fill:#f6e3c6,stroke:#a3440f,color:#1f1f1c,stroke-dasharray:6 4
+    classDef safety fill:#f6e3c6,stroke:#a3440f,color:#1f1f1c,stroke-dasharray:6 4
     classDef io fill:#ffffff,stroke:#8a8a85,color:#1f1f1c
-    class rewriter,retriever,prompt,generator,filters planned
-    class stm,profile memory
-    class input,output io
+    class controller,retriever,prompt,generator,citations,log planned
+    class filters,guard safety
+    class request,response io
 ```
 
-The solid arrows are the main path that every message takes. The dotted arrows come from the two
-memory types (orange), which are the subject of the experiment; the configuration (0-3) switches them
-on or off. When short-term memory is off, the question goes to the retriever unchanged. When long-term memory is off, no profile filters
-are applied. A trace logger (not drawn, to keep the diagram readable) records the input and output
-of every component.
+Orange components carry the safety requirements of the assignment: deterministic filtering and refusing
+unsupported answers.
 
-| Component | Responsibility | Used in configuration |
-|---|---|---|
-| Conversation memory | Keeps recent turns and the products already shown | 1, 3 |
-| Query rewriter | Uses the conversation to turn a follow-up into a standalone question | 1, 3 |
-| Profile memory | Stores and updates allergies, diet and dislikes across conversations | 2, 3 |
-| Filter builder | Turns the profile into exact database conditions | 2, 3 |
-| Retriever | Applies the filters, then ranks products by vector similarity | all |
-| Prompt builder | Combines the question, the retrieved products and answering rules | all |
-| Answer generator | Sends the prompt to the language model and returns the answer | all |
-| Trace logger | Records the input and output of every step for evaluation | all |
+| Component | Responsibility |
+|---|---|
+| REST controller | Accepts the question and the structured limits (allergens to avoid, how to treat traces and unknown data, nutrition maxima) |
+| Constraint filter | Turns the limits into exact SQL conditions using the allergen status model in `docs/DATA.md` |
+| Retriever | Embeds the question; **vector-only** mode ranks all products by similarity, **hybrid** mode applies the filter conditions first and then ranks |
+| Grounding guard | Refuses when no product passes the filters or when the best match is too weak |
+| Prompt builder | Gives the model only the retrieved products (with EAN, link and allergen statuses) and the rule to answer from them only |
+| Answer generator | Calls the chat model through Spring AI |
+| Citation builder | Attaches EAN, name and source link of every product used to the response |
+| Provenance logger | Stores query, limits, product EANs, model names, parameters (top-k, temperature, search mode) and processing time |
 
-## Runtime view: one conversation turn (configuration 3)
+A second endpoint, `POST /api/search`, returns only the retrieved products without generating an answer.
+The evaluation uses it to measure precision@k independently of the language model.
+
+## Runtime view: one request
 
 ```mermaid
 sequenceDiagram
     actor U as User
-    participant C as Chat application
-    participant M as Memory (short + long)
-    participant L as Language model
+    participant B as Backend
+    participant O as Ollama
     participant D as Database
 
-    U->>C: "Is it gluten-free?"
-    C->>M: get recent turns and profile
-    M-->>C: last product: Alpro oat drink, profile: allergic to milk
-    C->>L: rewrite the question using the conversation
-    L-->>C: "Is Alpro oat drink gluten-free?"
-    C->>D: search: exclude milk, rank by similarity
-    D-->>C: top 5 products
-    C->>L: question + products + rules
-    L-->>C: answer
-    C->>M: store this turn
-    C-->>U: answer
+    U->>B: POST /api/ask {question, excludeAllergens: [milk], maxSugarsPer100g: 5}
+    B->>O: embed the question (bge-m3)
+    O-->>B: question vector
+    B->>D: SQL: exclude milk statuses, sugars at most 5 g, order by similarity, limit k
+    D-->>B: top-k products with EAN, link, allergen statuses
+    alt no product passes or matches are too weak
+        B-->>U: refusal with the reason
+    else enough evidence
+        B->>O: question + products + rules (qwen2.5:3b)
+        O-->>B: answer text
+        B-->>U: answer + cited products (EAN, name, link)
+    end
+    B->>D: log query, sources, model, parameters, time
 ```
+
+## Evaluation plan
+- At least 15 test queries with known relevant products, covering dietary restrictions, missing data and
+  correctness of source links.
+- Metrics: precision@k of the retrieved products, latency of search and of the full answer.
+- Comparison: vector-only vs hybrid search on the same queries.
 
 ## Key decisions
 
 | Decision | Alternative considered | Reason |
 |---|---|---|
-| Python | Java with Spring AI | Main libraries for embeddings and evaluation are in Python; less code for a prototype |
-| Local models (Ollama, multilingual-e5-small) | Paid cloud API | Free, reproducible, data stays local; small models are enough to compare memory configurations |
-| One database for vectors, filters and profiles (PostgreSQL + pgvector) | Separate vector database and search engine | Exact allergen filters and similarity search in one SQL query; fewer moving parts |
-| Exact similarity search, no approximate index | HNSW index | 5,888 products are searched in milliseconds; no approximation errors that would distort the evaluation |
-| Strict filters for allergies, similarity only for ranking | Similarity search only | "No milk" must be a hard rule; similarity search alone can return milk products |
-| Command-line chat | Web interface | The experiment does not need one; a web interface can be added later if required |
-| Own code, no framework (LangChain etc.) | RAG framework | Every step stays visible and measurable, which the evaluation needs |
+| Backend in Java with Spring Boot and Spring AI | Python | Required by the assignment |
+| Data preparation in Python (DuckDB) | Java | Fast analysis of an 8 GB Parquet file; the assignment lists data preparation scripts as a separate deliverable |
+| Local models in Ollama: `qwen2.5:3b` for answers, `bge-m3` for embeddings | Paid cloud API | Free, reproducible, data stays local; Spring AI supports Ollama directly; `bge-m3` is multilingual (61% of products are Czech) |
+| One database for products, vectors and the answer log | Separate vector database | Allergen filters and similarity search in one SQL query; fewer moving parts |
+| Exact similarity search, no approximate index | HNSW index | 5,888 products are searched in milliseconds; no approximation errors in the evaluation, and no lost results when filters are applied |
+| Limits sent as structured fields in the request | Extracting limits from free text with the language model | Deterministic, repeatable filtering, as the assignment requires |
+| Unknown allergen data never counts as absence | Treating an empty allergen field as "no allergens" | Required by the assignment; the data has many empty fields |

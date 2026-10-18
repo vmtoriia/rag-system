@@ -1,18 +1,28 @@
-# RAG with contextual memory (semester project, B261)
+# Food RAG: answering questions about food composition and allergens
 
-Prototype of a semantic search + Retrieval-Augmented Generation (RAG) system with
-**short-term** (conversation) and **long-term** (user profile) memory.
-Corpus: Open Food Facts, Czech market. Research question: how do different memory variants
-affect anaphora resolution and personalisation?
+Semester project B261, Czech Technical University in Prague, Faculty of Electrical Engineering.
+Topic: *Prototyp systému RAG pro analýzu složení potravin a alergenů s využitím databáze Open Food Facts*.
+Supervisor: Ing. Ondřej Kuželka, Ph.D.
 
-## Planned experiment
-Four memory configurations: (0) none, (1) short-term only, (2) long-term only, (3) both.
-The same set of test dialogues is run through each configuration.
+A prototype that answers questions about food composition, allergens and nutrition using
+Retrieval-Augmented Generation (RAG) over a subset of the Open Food Facts database. It combines semantic
+search with deterministic filters on structured data, cites the products every answer is based on, and keeps
+declared allergens, possible traces and missing information apart.
+
+## Stack
+Java 21, Spring Boot, Spring AI, PostgreSQL with pgvector, Ollama (local models), Docker Compose.
+Data preparation in Python with DuckDB.
 
 ## Status
-- Done: data pipeline (steps 1-3b), corpus of 5,888 products, documented in [`docs/DATA.md`](docs/DATA.md).
-- Designed: system architecture (C4 model), see [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
-- Next: embeddings and vector database, then search without memory (configuration 0).
+
+| Part | Status |
+|---|---|
+| Data selection, cleaning and data model ([`docs/DATA.md`](docs/DATA.md)) | Done: 5,888 Czech products |
+| Architecture ([`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)) | Designed |
+| Database (PostgreSQL + pgvector in Docker) | Running |
+| Indexing (embeddings) | Next |
+| Backend: REST API, vector and hybrid search, filters, grounded answers, logging | Planned |
+| Evaluation: 15+ test queries, precision@k, latency, vector vs hybrid | Planned |
 
 ## Data pipeline
 Run in this order from the project root. On Windows use `.venv\Scripts\python.exe` instead of `python`.
@@ -26,19 +36,18 @@ Run in this order from the project root. On Windows use `.venv\Scripts\python.ex
 
 Step 1 only measures the raw data. Step 2 selects Czech products and applies quality filters.
 Step 3 cleans the text and allergen tags and builds `doc_text`, the text that will be embedded.
-Step 3b counts languages. Details, decisions and licence: see [`docs/DATA.md`](docs/DATA.md).
+Step 3b counts languages.
 
 ## Tools
-Helpers for looking at the data; they change nothing.
-
 | Tool | What it does |
 |---|---|
-| `tools/view_corpus.py` | Builds `data/corpus_view.html`, a page to search the corpus and try the allergy filter. |
+| `tools/view_corpus.py` | Builds `data/corpus_view.html`, a page to search the corpus and try allergen filters |
 
 ## Setup
     python -m venv .venv                      (Windows: py -m venv .venv)
     .venv\Scripts\python.exe -m pip install -r requirements.txt
-    # download food.parquet into data/ (see docs/DATA.md)
+    # download food.parquet into data/ (see docs/DATA.md), then run the data pipeline
+    docker compose up -d                      (starts PostgreSQL with pgvector on port 15432)
 
 ## Layout
     scripts/   data pipeline, numbered in the order they run
