@@ -79,18 +79,18 @@ flowchart TB
     classDef done fill:#3b6ea5,stroke:#24486e,color:#ffffff
     classDef planned fill:#dbe6f2,stroke:#3b6ea5,color:#1f1f1c,stroke-dasharray:6 4
     class client person
-    class pipeline,files,db,ollama done
-    class indexer,backend,evalr planned
+    class pipeline,files,indexer,db,ollama done
+    class backend,evalr planned
 ```
 
 | Container | Technology | Responsibility | Status |
 |---|---|---|---|
 | Data pipeline | Python, DuckDB | Select Czech products, filter, clean, build `doc_text` (`docs/DATA.md`) | Implemented |
 | Corpus files | Parquet | Final corpus of 5,888 products | Implemented |
-| Indexer | Python | Load products into the database; get their embeddings from Ollama | Planned |
-| Database | PostgreSQL 17 + pgvector, Docker | Product table with vectors; log of answers and their sources | Running, empty |
+| Indexer | Python | Load products into the database; get their embeddings from Ollama | Implemented |
+| Database | PostgreSQL 17 + pgvector, Docker | Product table with vectors; log of answers and their sources | Running; 5,888 products with vectors (answer log planned) |
 | Backend | Java 21, Spring Boot, Spring AI | REST API; vector and hybrid search; filters; grounded answers; logging | Planned |
-| Model server | Ollama | Chat model (`qwen2.5:3b`) and embedding model (`bge-m3`) | Chat model installed |
+| Model server | Ollama | Chat model (`qwen2.5:3b`) and embedding model (`bge-m3`) | Both models installed; embeddings in use |
 | Evaluation | Script calling the REST API | Run the test queries, compute precision@k and latency, compare search modes | Planned |
 
 The indexer and the backend use **the same embedding model in the same Ollama server**, so product vectors
