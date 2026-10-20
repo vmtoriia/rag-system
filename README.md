@@ -11,7 +11,7 @@ declared allergens, possible traces and missing information apart.
 
 ## Stack
 Java 21, Spring Boot, Spring AI, PostgreSQL with pgvector, Ollama (local models), Docker Compose.
-Data preparation in Python with DuckDB.
+Data preparation and indexing in Python with DuckDB.
 
 ## Status
 
@@ -20,7 +20,7 @@ Data preparation in Python with DuckDB.
 | Data selection, cleaning and data model ([`docs/DATA.md`](docs/DATA.md)) | Done: 5,888 Czech products |
 | Architecture ([`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)) | Designed |
 | Database (PostgreSQL + pgvector in Docker) | Running |
-| Indexing (embeddings) | Next |
+| Indexing: products and `bge-m3` vectors in the database (`scripts/04_index_products.py`) | Done |
 | Backend: REST API, vector and hybrid search, filters, grounded answers, logging | Planned |
 | Evaluation: 15+ test queries, precision@k, latency, vector vs hybrid | Planned |
 
@@ -33,15 +33,18 @@ Run in this order from the project root. On Windows use `.venv\Scripts\python.ex
 | 2 | `scripts/02_prepare_corpus.py` | `data/food.parquet` | `data/products_clean.parquet`, `reports/filter_funnel.csv`, `corpus_summary.txt` |
 | 3 | `scripts/03_enrich_corpus.py` | `data/products_clean.parquet` | `data/corpus.parquet`, `reports/corpus_enrichment.txt` |
 | 3b | `scripts/03b_language_check.py` | `data/corpus.parquet` | `reports/language_distribution.csv` |
+| 4 | `scripts/04_index_products.py` | `data/corpus.parquet`, Ollama `bge-m3` | table `products` in PostgreSQL, `reports/index_summary.txt` |
 
 Step 1 only measures the raw data. Step 2 selects Czech products and applies quality filters.
 Step 3 cleans the text and allergen tags and builds `doc_text`, the text that will be embedded.
-Step 3b counts languages.
+Step 3b counts languages. Step 4 embeds every product and stores it in the database (needs Docker and Ollama running).
 
 ## Tools
 | Tool | What it does |
 |---|---|
 | `tools/view_corpus.py` | Builds `data/corpus_view.html`, a page to search the corpus and try allergen filters |
+| `tools/embedding_demo.py` | Embeds a few texts with the Ollama model `bge-m3` and prints their cosine similarities |
+| `tools/toy_embedding_training.py` | A toy showing how embedding vectors are learned from pairs of texts with the same meaning |
 
 ## Setup
     python -m venv .venv                      (Windows: py -m venv .venv)

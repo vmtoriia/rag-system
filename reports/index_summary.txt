@@ -1,0 +1,20 @@
+Embedding model: bge-m3 via Ollama (1024 numbers per product)
+Products stored: 5,888
+Embedding time: 626 s
+
+Test searches, vector only (similarity: higher = closer in meaning):
+
+Query: ovesný nápoj
+  0.710  Ovesny nápoj (EnerBio)
+  0.693  Bio ovesný nápoj (Vemondo)
+  0.691  BIO ovesný nápoj (Delhaize)
+
+Query: oat drink
+  0.676  Oat vegan drink (Green Day,Olma)
+  0.666  organic oat drink (Take It Veggie)
+  0.662  Organic oat barista drink (Billa)
+
+Query: hořká čokoláda
+  0.675  Hořká čokoláda 68% (Orion,Nestlé)
+  0.674  Hořká čokoláda (fin CARRE)
+  0.672  Hořká čokoláda s pekanovými ořechy a kokosem (Fin Carré, Lidl, Way to Go)
