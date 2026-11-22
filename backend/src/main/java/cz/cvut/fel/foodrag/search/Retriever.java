@@ -6,8 +6,10 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.springframework.ai.embedding.EmbeddingModel;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -20,8 +22,8 @@ import org.springframework.stereotype.Service;
  * HYBRID mode: the database first removes products that break the filters (WHERE),
  * then returns the k closest of the remaining ones (ORDER BY ... LIMIT).
  *
- * In both modes every result gets the status of each requested allergen,
- * so the evaluation can count unsafe results of the vector-only search.
+ * In both modes every result gets the status of each requested allergen and the value of each
+ * requested nutrient, so the evaluation can count results of the vector-only search that break the filters.
  */
 @Service
 public class Retriever {
@@ -29,6 +31,8 @@ public class Retriever {
     private static final String SELECT = """
             SELECT ean, name, brands, url,
                    allergens_eu, traces_eu, allergens_other, allergens_declared_none,
+                   energy_kcal_100g, fat_100g, saturated_fat_100g, carbohydrates_100g,
+                   sugars_100g, fiber_100g, proteins_100g, salt_100g,
                    1 - (embedding <=> ?::vector) AS similarity
             FROM products
             """;
@@ -61,15 +65,28 @@ public class Retriever {
         params.add(vectorText);
 
         List<String> conditions = new ArrayList<>();
-        if (mode == SearchMode.HYBRID && !allergenTags.isEmpty()) {
-            String tagArray = toPgTextArray(allergenTags);
-            conditions.add(NOT_DECLARED_ALLERGEN);
-            params.add(tagArray);
-            if (filters.tracesPolicy() == TracesPolicy.EXCLUDE) {
-                conditions.add(NO_TRACES);
+        if (mode == SearchMode.HYBRID) {
+            if (!allergenTags.isEmpty()) {
+                String tagArray = toPgTextArray(allergenTags);
+                conditions.add(NOT_DECLARED_ALLERGEN);
                 params.add(tagArray);
+                if (filters.tracesPolicy() == TracesPolicy.EXCLUDE) {
+                    conditions.add(NO_TRACES);
+                    params.add(tagArray);
+                }
+                conditions.add(HAS_ALLERGEN_INFO);
             }
-            conditions.add(HAS_ALLERGEN_INFO);
+            // Nutrition limits: a product without the value cannot be confirmed to meet the limit, so it is removed
+            for (Map.Entry<String, Double> limit : filters.maxPer100g().entrySet()) {
+                String column = Nutrients.column(limit.getKey());
+                conditions.add("(" + column + " IS NOT NULL AND " + column + " <= ?)");
+                params.add(limit.getValue());
+            }
+            for (Map.Entry<String, Double> limit : filters.minPer100g().entrySet()) {
+                String column = Nutrients.column(limit.getKey());
+                conditions.add("(" + column + " IS NOT NULL AND " + column + " >= ?)");
+                params.add(limit.getValue());
+            }
         }
 
         String sql = SELECT
@@ -78,19 +95,26 @@ public class Retriever {
         params.add(vectorText);
         params.add(k);
 
-        return jdbc.query(sql, (row, rowNumber) -> toHit(row, allergenTags), params.toArray());
+        return jdbc.query(sql, (row, rowNumber) -> toHit(row, filters), params.toArray());
     }
 
-    private static ProductHit toHit(ResultSet row, List<String> allergenTags) throws SQLException {
+    private static ProductHit toHit(ResultSet row, SearchFilters filters) throws SQLException {
         List<String> allergens = textList(row, "allergens_eu");
         List<String> traces = textList(row, "traces_eu");
         List<String> other = textList(row, "allergens_other");
         boolean declaredNone = row.getBoolean("allergens_declared_none");
 
         Map<String, AllergenStatus> statuses = new LinkedHashMap<>();
-        for (String tag : allergenTags) {
+        for (String tag : filters.excludeAllergenTags()) {
             String name = tag.substring("en:".length());
             statuses.put(name, AllergenStatus.of(tag, allergens, traces, other, declaredNone));
+        }
+
+        Set<String> nutrients = new LinkedHashSet<>(filters.maxPer100g().keySet());
+        nutrients.addAll(filters.minPer100g().keySet());
+        Map<String, Double> nutrition = new LinkedHashMap<>();
+        for (String nutrient : nutrients) {
+            nutrition.put(nutrient, row.getObject(Nutrients.column(nutrient), Double.class));
         }
 
         return new ProductHit(
@@ -99,7 +123,8 @@ public class Retriever {
                 row.getString("brands"),
                 row.getDouble("similarity"),
                 row.getString("url"),
-                statuses);
+                statuses,
+                nutrition);
     }
 
     /** A PostgreSQL text[] column as a Java list; a missing value becomes an empty list. */

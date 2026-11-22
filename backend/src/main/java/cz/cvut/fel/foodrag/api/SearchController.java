@@ -32,7 +32,7 @@ public class SearchController {
         try {
             filters = request.filters();
         } catch (IllegalArgumentException e) {
-            // A wrong allergen name is the user's mistake: answer 400 Bad Request with the reason
+            // A wrong allergen or nutrient name is the user's mistake: answer 400 Bad Request with the reason
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage());
         }
         SearchMode mode = request.modeOrDefault();
