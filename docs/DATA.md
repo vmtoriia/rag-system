@@ -41,6 +41,13 @@ be used for content-based retrieval, so they are removed.
 
 ## Known limitations of the data
 - Crowd-sourced. An empty allergen field does not prove that a product contains no allergens.
+- Allergen tags can be incomplete even when a product has allergen information. Example: "Mléčná čokoláda"
+  (Manner, 9000331612485) lists only traces of nuts, although its ingredients contain milk, lactose and whey.
+  Of the 2,085 products whose milk status is `NOT_DECLARED`, 184 (8.8%) contain milk-related words in the
+  ingredients text (simple multilingual word match). A manual look at 20 random cases found both real misses
+  and false matches (lactate, lactic acid, coconut milk), so the word match is not reliable enough for
+  filtering. The filter therefore uses the tags only, and answers say "not declared", never "safe".
+  Detecting allergens from the ingredients text is proposed for the thesis.
 - Allergen coverage in the raw Czech data is 19.7%; it is 60.8% in the final corpus only because the corpus
   keeps products that have an ingredients text.
 - Mixed languages (product language code, `reports/language_distribution.csv`): Czech 60.8%, English 15.2%,
